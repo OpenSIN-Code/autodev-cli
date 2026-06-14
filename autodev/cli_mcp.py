@@ -128,6 +128,31 @@ def tool_autodev_swarm(
     ])
 
 
+def tool_autodev_session_log(
+    project_root: str,
+    action: str = "log",
+    branch: str = "",
+    source: str = "",
+    target: str = "",
+    reason: str = "",
+    new_branch: str = "",
+    parent_branch: str = "main",
+) -> dict[str, Any]:
+    """Time-travel session ops: fork / branches / log / merge / drop / snapshot / diff."""
+    args = ["session", action, "--project-root", project_root, "--json"]
+    if action == "fork":
+        args.extend(["--into", new_branch, "--from", parent_branch])
+        if reason:
+            args.extend(["--reason", reason])
+    elif action == "merge":
+        args.extend(["--from", source, "--into", target])
+    elif action in ("snapshot", "diff"):
+        args.extend(["--branch", branch])
+    elif action == "drop":
+        args.extend(["--branch", branch])
+    return _run_cli(args)
+
+
 # ── Wire to MCP SDK ────────────────────────────────────────────────────
 def build_server() -> Any:
     server: Any = Server(SERVER_NAME)
@@ -218,6 +243,29 @@ def build_server() -> Any:
                     "required": ["project_root", "prompt", "verify_cmd"],
                 },
             ),
+            Tool(
+                name="autodev_session_log",
+                description="Time-travel sessions: fork/branches/log/merge/drop/snapshot/diff.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project_root": {"type": "string"},
+                        "action": {
+                            "type": "string",
+                            "enum": ["fork", "branches", "log", "merge",
+                                     "drop", "snapshot", "diff"],
+                            "default": "log",
+                        },
+                        "new_branch": {"type": "string"},
+                        "parent_branch": {"type": "string", "default": "main"},
+                        "branch": {"type": "string"},
+                        "source": {"type": "string"},
+                        "target": {"type": "string", "default": "main"},
+                        "reason": {"type": "string", "default": ""},
+                    },
+                    "required": ["project_root"],
+                },
+            ),
         ]
 
         @server.call_tool()
@@ -247,6 +295,17 @@ def build_server() -> Any:
                         arguments["verify_cmd"],
                         arguments.get("agents", "fast,precise"),
                         int(arguments.get("budget_minutes", 15)),
+                    )
+                elif name == "autodev_session_log":
+                    result = tool_autodev_session_log(
+                        arguments["project_root"],
+                        arguments.get("action", "log"),
+                        arguments.get("branch", ""),
+                        arguments.get("source", ""),
+                        arguments.get("target", "main"),
+                        arguments.get("reason", ""),
+                        arguments.get("new_branch", ""),
+                        arguments.get("parent_branch", "main"),
                     )
                 else:
                     return [TextContent(type="text", text=f"unknown tool: {name}")]

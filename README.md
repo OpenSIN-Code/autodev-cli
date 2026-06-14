@@ -112,6 +112,7 @@ pytest tests/                   # 67 passed
 | [`docs/SAFETY.md`](docs/SAFETY.md) | Bounded Autonomy: 3 harte Invarianten, AGENTS.md-Firewall, Threat Model |
 | [`docs/COOKBOOK.md`](docs/COOKBOOK.md) | Praxis-Rezepte: Hot Function, Coverage, Memory Leak, Latency |
 | [`docs/SWARM.md`](docs/SWARM.md) | Multi-Agent Orchestration: Profile, First-Verified-Wins |
+| [`docs/SESSIONS.md`](docs/SESSIONS.md) | Time-Travel Sessions: fork/snapshot/diff/merge von Lessons |
 | [`docs/MCP.md`](docs/MCP.md) | Externe Tools + `autodev-mcp` Bridge-Pattern |
 | [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) | Developer Guide, Conventional Commits, PR-Checklist |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Versionshistorie (Keep a Changelog) |

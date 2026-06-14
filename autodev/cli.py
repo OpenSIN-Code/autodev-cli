@@ -9,6 +9,16 @@ from rich.table import Table
 from .agent_loop import AgentLoop
 from .config import load_config, load_program
 from .knowledge_base import KnowledgeBase
+from .sessions import (
+    DEFAULT_BRANCH,
+    diff_snapshots,
+    drop_branch,
+    fork_session,
+    list_branches,
+    list_forks,
+    merge_branch,
+    take_snapshot,
+)
 from .swarm import DEFAULT_PROFILES, Profile, SwarmCoordinator, load_profiles
 from .verifier import Verifier
 
@@ -325,6 +335,147 @@ def goal(
     console.print(f"[green]✅ Goal #{goal_id} added (priority {priority})[/green]")
     console.print(f"   '{description}'")
 
+
+
+app_session = typer.Typer(help="Time-travel sessions: fork, snapshot, branch lesson state.")
+app.add_typer(app_session, name="session")
+
+
+@app_session.command("fork")
+def session_fork(
+    new_branch: str = typer.Option(..., "--into", help="New branch_id"),
+    parent_branch: str = typer.Option(DEFAULT_BRANCH, "--from", help="Parent branch_id"),
+    reason: str = typer.Option("", "--reason", help="Why you are forking"),
+    project_root: Path = typer.Option("."),
+    json_output: bool = typer.Option(False, "--json"),
+):
+    """Fork a new session branch inheriting parent's lessons."""
+    kb = KnowledgeBase(project_root / ".autodev" / "knowledge.db")
+    kb.initialize()
+    snap = fork_session(kb, new_branch=new_branch, parent_branch=parent_branch, reason=reason)
+    if json_output:
+        _emit_json({
+            "ok": True, "branch_id": snap.branch_id,
+            "forked_from": snap.forked_from, "forked_at": snap.forked_at,
+            "inherited_lessons": snap.lesson_count,
+        })
+    else:
+        console.print(f"[green]Forked {snap.forked_from!r} -> {snap.branch_id!r}[/green]")
+        console.print(f"   Inherited {snap.lesson_count} lessons.")
+
+
+@app_session.command("branches")
+def session_branches(
+    project_root: Path = typer.Option("."),
+    json_output: bool = typer.Option(False, "--json"),
+):
+    """List all session branches with lesson counts."""
+    kb = KnowledgeBase(project_root / ".autodev" / "knowledge.db")
+    kb.initialize()
+    branches = list_branches(kb)
+    if json_output:
+        _emit_json({"ok": True, "branches": branches})
+    else:
+        table = Table(title="Session Branches")
+        table.add_column("Branch", style="cyan")
+        table.add_column("Lessons", style="green")
+        for b in branches:
+            table.add_row(b["branch_id"], str(b["lessons"]))
+        console.print(table)
+
+
+@app_session.command("log")
+def session_log(
+    project_root: Path = typer.Option("."),
+    json_output: bool = typer.Option(False, "--json"),
+):
+    """Fork log (parent -> child, when, why)."""
+    kb = KnowledgeBase(project_root / ".autodev" / "knowledge.db")
+    kb.initialize()
+    forks = list_forks(kb)
+    if json_output:
+        _emit_json({"ok": True, "count": len(forks), "forks": forks})
+    else:
+        if not forks:
+            console.print("[dim]No forks yet.[/dim]")
+            return
+        table = Table(title="Fork Log")
+        table.add_column("From", style="cyan")
+        table.add_column("Into", style="green")
+        table.add_column("When", style="yellow")
+        table.add_column("Reason", style="magenta")
+        for f in forks:
+            table.add_row(f["parent_branch"], f["child_branch"], f["forked_at"], f.get("reason") or "")
+        console.print(table)
+
+
+@app_session.command("merge")
+def session_merge(
+    source: str = typer.Option(..., "--from", help="Branch to merge from"),
+    target: str = typer.Option(DEFAULT_BRANCH, "--into", help="Branch to merge into"),
+    project_root: Path = typer.Option("."),
+    json_output: bool = typer.Option(False, "--json"),
+):
+    """Merge source branch's divergent lessons into target (skip dupes)."""
+    kb = KnowledgeBase(project_root / ".autodev" / "knowledge.db")
+    kb.initialize()
+    n = merge_branch(kb, source_branch=source, target_branch=target)
+    if json_output:
+        _emit_json({"ok": True, "merged_lessons": n, "source": source, "target": target})
+    else:
+        console.print(f"[green]Merged {n} new lessons: {source!r} -> {target!r}[/green]")
+
+
+@app_session.command("drop")
+def session_drop(
+    branch: str = typer.Option(..., "--branch", help="Branch to drop"),
+    project_root: Path = typer.Option("."),
+    json_output: bool = typer.Option(False, "--json"),
+):
+    """Drop a session branch (irreversible)."""
+    kb = KnowledgeBase(project_root / ".autodev" / "knowledge.db")
+    kb.initialize()
+    n = drop_branch(kb, branch_id=branch)
+    if json_output:
+        _emit_json({"ok": True, "deleted_lessons": n, "branch": branch})
+    else:
+        console.print(f"[yellow]Dropped {n} lessons from {branch!r}.[/yellow]")
+
+
+@app_session.command("snapshot")
+def session_snapshot(
+    branch: str = typer.Option(DEFAULT_BRANCH, "--branch"),
+    project_root: Path = typer.Option("."),
+    json_output: bool = typer.Option(False, "--json"),
+):
+    kb = KnowledgeBase(project_root / ".autodev" / "knowledge.db")
+    kb.initialize()
+    snap = take_snapshot(kb, branch_id=branch)
+    if json_output:
+        _emit_json({"ok": True, "branch": snap.branch_id, "at": snap.forked_at, "lesson_count": snap.lesson_count})
+    else:
+        console.print(f"[cyan]Snapshot {snap.branch_id!r}: {snap.lesson_count} lessons at {snap.forked_at}[/cyan]")
+
+
+@app_session.command("diff")
+def session_diff(
+    branch: str = typer.Option(DEFAULT_BRANCH, "--branch"),
+    project_root: Path = typer.Option("."),
+    json_output: bool = typer.Option(False, "--json"),
+):
+    """Time-travel diff: what changed in this branch since fork?"""
+    kb = KnowledgeBase(project_root / ".autodev" / "knowledge.db")
+    kb.initialize()
+    parent_forks = [f for f in list_forks(kb) if f["child_branch"] == branch]
+    snap = take_snapshot(
+        kb, branch_id=parent_forks[-1]["parent_branch"] if parent_forks else DEFAULT_BRANCH,
+    )
+    d = diff_snapshots(kb, snap, current_branch=branch)
+    if json_output:
+        _emit_json({"ok": True, **d})
+    else:
+        console.print(f"[bold]Diff for {branch!r}:[/bold]")
+        console.print(f"   + {len(d['added'])} added, - {len(d['removed'])} removed, = {d['unchanged_count']} unchanged")
 
 @app.command()
 def swarm(

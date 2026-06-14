@@ -7,13 +7,48 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 - MCP Integration für externe Tools — siehe `docs/MCP.md`
-- Time-Travel Debugging via Session-Forking
 - Superpowers-Integration (TDD/Debugging Skills)
 - GitHub Bridge (issue-first Contributing)
 
 ### Changed
 - Upgrade auf Python 3.11+
 - Typer 0.12 (bessere Fehlermeldungen)
+
+## [0.4.0] - 2026-06-14
+
+### Added
+- **Time-Travel Sessions v1.0** (`autodev session ...`): fork, snapshot,
+  diff, merge, drop — Lessons sind ab jetzt **branch-scoped**.
+  - `autodev/sessions.py`: `fork_session`, `take_snapshot`,
+    `diff_snapshots`, `merge_branch`, `drop_branch`, `list_branches`,
+    `list_forks`, `Snapshot` Datenklasse.
+  - 7 CLI subcommands (Typer sub-app): fork, branches, log, merge,
+    drop, snapshot, diff — alle mit `--json` für MCP-Bridge.
+  - `docs/SESSIONS.md`: Konzept, Schema, Use Cases, MCP-Beispiel,
+    Sicherheit, Roadmap.
+- **MCP-Tool `autodev_session_log`** (7. Tool): exposed alle 7 Actions
+  via stdio JSON-RPC. Konsumierbar von SIN-Code WebUI v2 + Claude Code.
+- **KnowledgeBase branch_id column** (idempotente Migration):
+  `ALTER TABLE lessons ADD COLUMN branch_id TEXT NOT NULL DEFAULT 'main'`
+  mit `idx_lessons_branch` Index. Pre-v0.4.0 DBs migrieren sich
+  selbständig.
+- **Forks log table** (`forks`): parent_branch, child_branch,
+  forked_at, reason — Audit-Trail der Hypothesen-Verzweigung.
+- **`test_sessions.py`**: 19 Tests für Branch-Migration, Fork,
+  Time-Travel-Diff, Merge-Skips, Drop-Protection, List-Branches.
+
+### Changed
+- `pyproject.toml`: bumped auf `0.4.0` (semver: minor — additive).
+- `add_lesson(branch_id="main")` and `query_lessons(branch_id="main")`
+  sind rückwärtskompatibel (Default `branch_id="main"`).
+
+### Security
+- `drop_branch("main")` → `ValueError` (Default-Branch geschützt).
+- `merge_branch(source="X", target="X")` → `ValueError` (kein Self-Merge).
+- `fork_session(parent="X", new_branch="X")` → `ValueError` (kein Self-Fork).
+
+### Quality
+- ruff ✓ · pyright 0 errors · pytest ✓ (87 + 19 new = **106 bestehende Tests**).
 
 ## [0.3.0] - 2026-06-14
 
