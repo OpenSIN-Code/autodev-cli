@@ -9,11 +9,12 @@ from rich.table import Table
 from .agent_loop import AgentLoop
 from .config import load_config, load_program
 from .knowledge_base import KnowledgeBase
+from .swarm import DEFAULT_PROFILES, Profile, SwarmCoordinator, load_profiles
 from .verifier import Verifier
 
 app = typer.Typer(
     name="autodev",
-    help="🤖 Autonomous coding CLI: metrikgetriebene Experimente + Verification-First",
+    help="AUTONOMOUS coding CLI: metrikgetriebene Experimente + Verification-First",
     no_args_is_help=True,
 )
 console = Console()
@@ -323,6 +324,85 @@ def goal(
     goal_id = kb.add_goal(description, priority)
     console.print(f"[green]✅ Goal #{goal_id} added (priority {priority})[/green]")
     console.print(f"   '{description}'")
+
+
+@app.command()
+def swarm(
+    prompt: str = typer.Option(..., "-p", "--prompt", help="Objective for every swarm agent"),
+    agents: str = typer.Option(
+        "fast,precise",
+        "--agents",
+        help="Comma-separated profile names (resolved from .autodev/profiles.toml + defaults)",
+    ),
+    verify_cmd: str = typer.Option(..., "--verify-cmd", help="Verification gate (e.g. 'pytest -q')"),
+    budget_minutes: int = typer.Option(15, help="Per-agent wall-clock budget"),
+    max_experiments: int = typer.Option(4, help="Per-agent experiment cap"),
+    project_root: Path = typer.Option(".", help="Project root"),
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON instead of rich UI"),
+):
+    """🐝 Run a swarm of agents (parallel profiles). First-verified-wins.
+
+    Each profile runs in its own filesystem-isolated copy at
+    .autodev/swarm/<ts>/<profile>/. Loser diffs are exported to
+    .autodev/swarm-lost/ for forensics.
+    """
+    profiles = _resolve_profiles(agents, project_root)
+    if not profiles:
+        msg = {"ok": False, "error": f"no profiles resolved from '{agents}'"}
+        if json_output:
+            _emit_json(msg)
+        else:
+            console.print(f"[red]❌ {msg['error']}[/red]")
+        raise typer.Exit(1)
+
+    coord = SwarmCoordinator(
+        profiles=profiles,
+        project_root=project_root,
+        prompt=prompt,
+        verify_cmd=verify_cmd,
+        budget_minutes=budget_minutes,
+        max_experiments=max_experiments,
+    )
+    if json_output:
+        # _emit_json one line per agent plus a final swarm summary.
+        _emit_json({"ok": True, "event": "start", "profiles": [p.name for p in profiles]})
+    else:
+        console.print(f"[bold cyan]🐝 Swarm with {len(profiles)} profiles: "
+                      f"{', '.join(p.name for p in profiles)}[/bold cyan]")
+        console.print(f"   Prompt:     {prompt}")
+        console.print(f"   Verify:     {verify_cmd}")
+        console.print(f"   Budget:     {budget_minutes}m / {max_experiments} experiments per agent")
+
+    result = coord.run()
+
+    if json_output:
+        _emit_json(result.to_json())
+    else:
+        table = Table(title=f"🏁 Swarm Result (winner: {result.winner or 'none'})")
+        table.add_column("Profile", style="cyan")
+        table.add_column("Won", style="green")
+        table.add_column("Metric Δ", style="yellow")
+        table.add_column("Lessons", style="magenta")
+        table.add_column("Error", style="red")
+        for name, r in result.agent_results.items():
+            table.add_row(
+                name,
+                "✓" if r.won else "—",
+                f"{r.delta:+.4f}" if r.delta is not None else "—",
+                str(r.lessons_added),
+                r.error or "",
+            )
+        console.print(table)
+        console.print(f"[bold]Winner:[/bold] {result.winner or 'none'}")
+        console.print(f"[dim]Loser diffs:[/dim] {result.lost_dir}")
+
+
+def _resolve_profiles(names_csv: str, project_root: Path) -> list[Profile]:
+    """Merge .autodev/profiles.toml (if present) with the built-in defaults."""
+    file_profiles = load_profiles(project_root / ".autodev" / "profiles.toml")
+    merged = {**DEFAULT_PROFILES, **file_profiles}
+    wanted = [n.strip() for n in names_csv.split(",") if n.strip()]
+    return [merged[n] for n in wanted if n in merged]
 
 
 if __name__ == "__main__":

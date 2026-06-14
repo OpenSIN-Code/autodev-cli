@@ -94,7 +94,32 @@ max_tokens = 6000
 
 ## Status
 
-> Implementierung in Roadmap. Aktueller MVP implementiert `autodev swarm`
-> als Stub (zeigt verfügbare Profile, kein echtes Parallelspawning).
->
-> Issue #N (siehe GitHub) tracked den vollständigen 1.0-Layer.
+> ✅ Implementiert in **v0.3.0**. `autodev swarm` und das MCP-Tool
+> `autodev_swarm` laufen mit ThreadPool-basierter parallel-execution.
+> First-verified-wins race mit Loser-Forensics unter
+> `.autodev/swarm-lost/`. Lessons werden aus allen Agents in die
+> gemeinsame KB geschrieben (SIN-Code closed learning loop bleibt aktiv).
+
+## Verifikation
+
+```bash
+# CLI smoke
+autodev swarm \
+  -p "Reduce /api/users latency by 30%" \
+  --agents fast,precise,creative \
+  --verify-cmd "pytest -q" \
+  --budget-minutes 5 --json
+
+# MCP smoke
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+      "params":{"name":"autodev_swarm",
+                "arguments":{"project_root":"/path/to/repo",
+                             "prompt":"...","verify_cmd":"pytest -q"}}}' \
+  | autodev-mcp
+```
+
+## Konfiguration (Profile TOML)
+
+`.autodev/profiles.toml` ist optional. Ohne Datei fallen
+`--agents=fast,precise,creative` auf die Built-in-Defaults zurück.
+Mit Datei überschreiben deren Einträge die Defaults (shallow-merge).

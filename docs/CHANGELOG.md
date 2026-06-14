@@ -6,7 +6,6 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- Swarm Mode (parallele Agenten-Profile) — siehe `docs/SWARM.md` (Roadmap)
 - MCP Integration für externe Tools — siehe `docs/MCP.md`
 - Time-Travel Debugging via Session-Forking
 - Superpowers-Integration (TDD/Debugging Skills)
@@ -15,6 +14,42 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - Upgrade auf Python 3.11+
 - Typer 0.12 (bessere Fehlermeldungen)
+
+## [0.3.0] - 2026-06-14
+
+### Added
+- **Swarm Mode 1.0** (`autodev swarm`): ThreadPool-basierte
+  parallel-execution von N Profile-Agents mit first-verified-wins race.
+  - `autodev/swarm.py`: `Profile`, `load_profiles`,
+    `SwarmCoordinator`, `SwarmResult`.
+  - Filesystem-isolated worktrees unter `.autodev/swarm/<ts>/<profile>/`.
+  - Loser-Forensics: jeder Verlierer-Agent exportiert seinen Datei-Snapshot
+    nach `.autodev/swarm-lost/loser-<profile>-<ts>.diff`.
+  - Gewinner-Diff: `.autodev/swarm-lost/winner-<profile>-<ts>.diff`
+    (Audit-Log).
+  - Lessons aus LAUFENDEN + VERLORENEN Agents werden weiterhin in die
+    shared KnowledgeBase geschrieben (SIN-Code closed loop bleibt aktiv).
+- **MCP-Tool `autodev_swarm`**: durch das `cli_mcp.py`-Bridge-Pattern
+  exposed. Konsumierbar von SIN-Code WebUI v2 + Claude Code.
+- **CLI `autodev swarm -p/--prompt --agents --verify-cmd --budget-minutes
+  --max-experiments --json/--no-json`**: full Typer-Surface mit
+  Profile-Auflösung (`.autodev/profiles.toml` + Built-in-Defaults).
+- **Built-in-Profile** (`DEFAULT_PROFILES`): `fast`,
+  `precise`, `creative` mit vor-getunten model/temperature-Paaren.
+- **CodeMutator ist temperature-aware**: `CodeMutator(model="gpt-4o-mini",
+  temperature=0.3)` — Lazy _client, kein OPENAI_API_KEY nötig wenn
+  nur `__init__` aufgerufen wird.
+- **`test_swarm.py`**: 12 Tests für Profile-Parser, Race-Semantik,
+  Loser-Forensics, MCP-Bridge.
+
+### Changed
+- pyproject.toml: bumped auf `0.3.0` (semver: minor — additive feature).
+- `docs/SWARM.md`: Status von "Stub" → "Implementiert v0.3.0".
+- `docs/CHANGELOG.md`: dieses Block.
+
+### Quality
+- ruff ✓ · pyright ✓ · pytest ✓ (67 + 12 new = 79 bestehende Tests
+  erweitert; 79 bestanden zum Release).
 
 ## [0.2.0] - 2026-06-14
 

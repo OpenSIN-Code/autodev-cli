@@ -8,9 +8,15 @@ from autodev.mutator import CodeMutator
 
 class TestCodeMutator:
     def test_missing_api_key_raises_error(self):
+        # Lazy: __init__ does NOT need a key. propose_mutation() does.
         with patch.dict("os.environ", {}, clear=True):
+            mutator = CodeMutator(model="gpt-4o", temperature=0.7)
+            assert mutator._api_key is None
             with pytest.raises(RuntimeError, match="OPENAI_API_KEY not set"):
-                CodeMutator()
+                mutator.propose_mutation(
+                    file_content="code", file_path="x.py",
+                    objective="x", lessons=[], constraints=[],
+                )
 
     @patch("autodev.mutator.OpenAI")
     def test_propose_mutation_success(self, mock_openai_class):

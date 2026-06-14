@@ -105,6 +105,29 @@ def tool_autodev_init(project_root: str) -> dict[str, Any]:
     return _run_cli(["init", project_root])
 
 
+def tool_autodev_swarm(
+    project_root: str,
+    prompt: str,
+    verify_cmd: str,
+    agents: str = "fast,precise",
+    budget_minutes: int = 15,
+) -> dict[str, Any]:
+    """Spawn a parallel swarm via the CLI; returns the SwarmResult JSON.
+
+    Bridge pattern: no logic in cli_mcp.py. The CLI is the verified
+    entry point (covered by tests/test_cli.py).
+    """
+    return _run_cli([
+        "swarm",
+        "--project-root", project_root,
+        "--agents", agents,
+        "--verify-cmd", verify_cmd,
+        "--budget-minutes", str(budget_minutes),
+        "--json",
+        "-p", prompt,
+    ])
+
+
 # ── Wire to MCP SDK ────────────────────────────────────────────────────
 def build_server() -> Any:
     server: Any = Server(SERVER_NAME)
@@ -173,35 +196,65 @@ def build_server() -> Any:
                     "required": ["project_root"],
                 },
             ),
+            Tool(
+                name="autodev_swarm",
+                description="Spawn a parallel swarm of profile agents; first-verified-wins.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project_root": {"type": "string"},
+                        "prompt": {"type": "string"},
+                        "verify_cmd": {"type": "string"},
+                        "agents": {
+                            "type": "string",
+                            "default": "fast,precise",
+                            "description": "Comma-separated profile names",
+                        },
+                        "budget_minutes": {
+                            "type": "integer",
+                            "default": 15,
+                        },
+                    },
+                    "required": ["project_root", "prompt", "verify_cmd"],
+                },
+            ),
         ]
 
-    @server.call_tool()
-    async def call_tool(name: str, arguments: dict) -> list[Any]:
-        try:
-            if name == "autodev_status":
-                result = tool_autodev_status(arguments["project_root"])
-            elif name == "autodev_lessons":
-                result = tool_autodev_lessons(
-                    arguments["project_root"],
-                    arguments.get("pattern", ""),
-                    int(arguments.get("limit", 20)),
-                )
-            elif name == "autodev_run_experiment":
-                result = tool_autodev_run_experiment(
-                    arguments["project_root"],
-                    arguments["file"],
-                    arguments["mutation"],
-                    arguments["verify_cmd"],
-                )
-            elif name == "autodev_init":
-                result = tool_autodev_init(arguments["project_root"])
-            else:
-                return [TextContent(type="text", text=f"unknown tool: {name}")]
-        except (RuntimeError, KeyError, json.JSONDecodeError) as e:
-            return [TextContent(type="text", text=f"error: {e}")]
-        return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
+        @server.call_tool()
+        async def call_tool(name: str, arguments: dict) -> list[Any]:
+            try:
+                if name == "autodev_status":
+                    result = tool_autodev_status(arguments["project_root"])
+                elif name == "autodev_lessons":
+                    result = tool_autodev_lessons(
+                        arguments["project_root"],
+                        arguments.get("pattern", ""),
+                        int(arguments.get("limit", 20)),
+                    )
+                elif name == "autodev_run_experiment":
+                    result = tool_autodev_run_experiment(
+                        arguments["project_root"],
+                        arguments["file"],
+                        arguments["mutation"],
+                        arguments["verify_cmd"],
+                    )
+                elif name == "autodev_init":
+                    result = tool_autodev_init(arguments["project_root"])
+                elif name == "autodev_swarm":
+                    result = tool_autodev_swarm(
+                        arguments["project_root"],
+                        arguments["prompt"],
+                        arguments["verify_cmd"],
+                        arguments.get("agents", "fast,precise"),
+                        int(arguments.get("budget_minutes", 15)),
+                    )
+                else:
+                    return [TextContent(type="text", text=f"unknown tool: {name}")]
+            except (RuntimeError, KeyError, json.JSONDecodeError) as e:
+                return [TextContent(type="text", text=f"error: {e}")]
+            return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
 
-    return server
+        return server
 
 
 def main() -> int:
