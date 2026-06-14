@@ -103,6 +103,19 @@ pyright .                       # 0 errors
 pytest tests/                   # 67 passed
 ```
 
+## 📚 Documentation
+
+| Doc | What it covers |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Systemdesign (PLAN→ACT→VERIFY→DONE), Komponenten-Übersicht, Datenfluss |
+| [`docs/LEARNING.md`](docs/LEARNING.md) | Closed Learning Loop: SQLite KB, Pattern-Klassifikation, Prompt-Injektion |
+| [`docs/SAFETY.md`](docs/SAFETY.md) | Bounded Autonomy: 3 harte Invarianten, AGENTS.md-Firewall, Threat Model |
+| [`docs/COOKBOOK.md`](docs/COOKBOOK.md) | Praxis-Rezepte: Hot Function, Coverage, Memory Leak, Latency |
+| [`docs/SWARM.md`](docs/SWARM.md) | Multi-Agent Orchestration: Profile, First-Verified-Wins |
+| [`docs/MCP.md`](docs/MCP.md) | Externe Tools + `autodev-mcp` Bridge-Pattern |
+| [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) | Developer Guide, Conventional Commits, PR-Checklist |
+| [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Versionshistorie (Keep a Changelog) |
+
 ## License
 
 MIT — see [`LICENSE`](./LICENSE).

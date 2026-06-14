@@ -25,6 +25,14 @@ dev = [
 autodev = "autodev.cli:app"
 autodev-mcp = "autodev.cli_mcp:main"
 
+[project.urls]
+Homepage = "https://github.com/OpenSIN-Code/autodev-cli"
+Documentation = "https://github.com/OpenSIN-Code/autodev-cli/tree/main/docs"
+Repository = "https://github.com/OpenSIN-Code/autodev-cli"
+Issues = "https://github.com/OpenSIN-Code/autodev-cli/issues"
+Changelog = "https://github.com/OpenSIN-Code/autodev-cli/blob/main/docs/CHANGELOG.md"
+SisterCLI = "https://github.com/OpenSIN-Code/SIN-Code-Bundle"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
